@@ -1,0 +1,170 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="color-scheme" content="dark light"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>code-kit — QR, highlighting and snippets</title>
+<style>
+:root{--bg:#0f1115;--card:#171a21;--ink:#e7e9ee;--mut:#9aa3b2;--line:#252a34;--acc:#22c55e;--code:#1d222b}
+:root[data-theme="light"]{color-scheme:light;--bg:#f6f7f9;--card:#fff;--ink:#0f1115;--mut:#4b5563;--line:#dfe3e8;--acc:#15803d;--code:#f1f3f6}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.6 system-ui,-apple-system,Segoe UI,Roboto,sans-serif}
+header,main,footer{max-width:980px;margin:0 auto;padding:24px 20px}
+h1{margin:0 0 6px;font-size:24px}h2{margin:32px 0 10px;font-size:17px}
+.mut{color:var(--mut)}
+.theme-btn{float:right;width:30px;height:30px;margin:2px 0 0 10px;padding:0;background:transparent;color:inherit;
+  border:1px solid var(--line);border-radius:50%;cursor:pointer;opacity:.8}
+.theme-btn:hover{opacity:1}.theme-btn svg{width:15px;height:15px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round}
+.row{display:flex;gap:12px;flex-wrap:wrap;align-items:center;margin:12px 0}
+input[type=text],select,textarea{background:var(--card);color:var(--ink);border:1px solid var(--line);
+  border-radius:8px;padding:8px 10px;font:inherit;font-size:14px}
+input[type=text]{flex:1;min-width:240px}
+textarea{width:100%;min-height:110px;font:13px/1.5 ui-monospace,SFMono-Regular,Menlo,monospace;resize:vertical}
+#qrbox{background:#fff;border-radius:12px;padding:12px;display:inline-block;line-height:0}
+#qrbox svg{width:220px;height:220px}
+.side{display:grid;gap:16px;grid-template-columns:auto 1fr}
+@media(max-width:760px){.side{grid-template-columns:1fr}}
+pre{margin:0;background:var(--code);border-radius:10px;padding:12px;overflow:auto;
+  font:13px/1.55 ui-monospace,SFMono-Regular,Menlo,monospace}
+.tok-com{color:#7c8b9c;font-style:italic}
+.tok-str{color:#22c55e}
+.tok-num{color:#f0b429}
+.tok-kw{color:#7aa2f7;font-weight:600}
+.tok-fn{color:#c792ea}
+.tok-key{color:#e0af68}
+.tok-tag{color:#f7768e}
+.tok-attr{color:#e0af68}
+.tok-punc{color:var(--mut)}
+.snippet{border:1px solid var(--line);border-radius:10px;overflow:hidden;margin:12px 0}
+.snippet-head{display:flex;justify-content:space-between;align-items:center;background:var(--code);
+  padding:6px 10px;font-size:12px;color:var(--mut)}
+.snippet-copy{background:transparent;color:var(--acc);border:1px solid var(--line);border-radius:6px;
+  padding:2px 8px;font:inherit;font-size:12px;cursor:pointer}
+.snippet pre{border-radius:0;background:var(--code)}
+.facts{font-size:13px;color:var(--mut)}
+code{background:rgba(127,127,127,.14);padding:1px 5px;border-radius:4px;font-size:12.5px}
+</style></head><body>
+<header>
+  <button class="theme-btn" id="theme" title="Switch theme" aria-label="Switch theme">
+    <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M5 5l1.5 1.5M17.5 17.5L19 19M19 5l-1.5 1.5M6.5 17.5L5 19"/></svg>
+  </button>
+  <h1>code-kit</h1>
+  <p class="mut">QR encoding (versions 1–40, L/M/Q/H, all eight masks), a small syntax
+  highlighter and copyable code blocks — all in one zero-dependency file.</p>
+</header>
+
+<main>
+  <h2>QR</h2>
+  <div class="row">
+    <input type="text" id="qrtext" value="https://drsamonline.github.io/code-kit/" aria-label="QR content">
+    <select id="qrlevel" aria-label="Error level">
+      <option>L</option><option selected>M</option><option>Q</option><option>H</option>
+    </select>
+    <select id="qrmask" aria-label="Mask">
+      <option value="">auto</option>
+      <option>0</option><option>1</option><option>2</option><option>3</option>
+      <option>4</option><option>5</option><option>6</option><option>7</option>
+    </select>
+  </div>
+  <div class="side">
+    <div id="qrbox"></div>
+    <div>
+      <p class="facts" id="qrfacts"></p>
+      <p class="mut" style="font-size:13px">The matrix is data. Nothing here knows about a
+      canvas: <code>qr.modules</code> is booleans, and the picture is the
+      <code>qr.svg()</code> string.</p>
+      <pre id="qrascii" style="font-size:8px;line-height:1"></pre>
+    </div>
+  </div>
+
+  <h2>Highlighter</h2>
+  <div class="row">
+    <select id="lang" aria-label="Language"></select>
+  </div>
+  <textarea id="src" spellcheck="false"></textarea>
+  <pre id="out" style="margin-top:12px"></pre>
+
+  <h2>Snippet</h2>
+  <div id="snippet"></div>
+</main>
+
+<footer class="mut" style="font-size:13px">
+  <p>PolyForm Noncommercial 1.0.0. (c) 2026 Dr Sohil Momin. Encoder verified against segno — see scripts/verify-qr.py.</p>
+</footer>
+
+<script src="../code-kit.js"></script>
+<script>
+var Code = window.Code;
+
+/* ---------- QR ---------- */
+function drawQr() {
+  var text = document.getElementById("qrtext").value;
+  var level = document.getElementById("qrlevel").value;
+  var maskSel = document.getElementById("qrmask").value;
+  var opts = { level: level };
+  if (maskSel !== "") opts.mask = +maskSel;
+  try {
+    var r = Code.qr.encode(text, opts);
+    document.getElementById("qrbox").innerHTML = Code.qr.svg(text, opts);
+    document.getElementById("qrfacts").textContent =
+      "version " + r.version + " · " + r.size + "×" + r.size + " modules · level " + r.level +
+      " · mask " + r.mask + " · penalty " + r.penalty;
+    document.getElementById("qrascii").textContent = Code.qr.ascii(text, opts);
+  } catch (e) {
+    document.getElementById("qrbox").innerHTML = "";
+    document.getElementById("qrfacts").textContent = e.message;
+    document.getElementById("qrascii").textContent = "";
+  }
+}
+["qrtext", "qrlevel", "qrmask"].forEach(function (id) {
+  document.getElementById(id).addEventListener("input", drawQr);
+  document.getElementById(id).addEventListener("change", drawQr);
+});
+
+/* ---------- highlighter ---------- */
+var SAMPLES = {
+  js: 'const greet = (name) => {\n  // say hello\n  return `hello ${name}`;\n};\n\ngreet("world"); // 42',
+  json: '{\n  "name": "code-kit",\n  "zeroDeps": true,\n  "version": 1\n}',
+  html: '<div class="card" id="a">\n  <!-- a note -->\n  <span>text</span>\n</div>',
+  css: '.card {\n  color: #ffffff;\n  padding: 12px;\n}',
+  py: 'def greet(name):\n    """Say hello."""\n    # a note\n    return f"hello {name}"',
+  go: 'func greet(name string) string {\n\treturn "hello " + name\n}',
+  sh: 'if [ -f go.mod ]; then\n  echo "module present"\nfi',
+  sql: 'SELECT name, count(*) FROM rubrics\nWHERE grade >= 3\nGROUP BY name;'
+};
+
+var langSel = document.getElementById("lang");
+Code.languages.forEach(function (l) {
+  if (!SAMPLES[l]) return;
+  var o = document.createElement("option");
+  o.value = l; o.textContent = l;
+  langSel.appendChild(o);
+});
+langSel.value = "js";
+
+function drawCode() {
+  var lang = langSel.value;
+  document.getElementById("src").value = SAMPLES[lang] || "";
+  document.getElementById("out").innerHTML = Code.highlight(SAMPLES[lang] || "", lang);
+  Code.snippet.mount(document.getElementById("snippet"), SAMPLES[lang] || "", { language: lang });
+}
+langSel.addEventListener("change", drawCode);
+document.getElementById("src").addEventListener("input", function () {
+  document.getElementById("out").innerHTML = Code.highlight(this.value, langSel.value);
+});
+
+/* ---------- theme ---------- */
+(function () {
+  var key = "code-kit-theme";
+  function apply(t) { document.documentElement.setAttribute("data-theme", t); }
+  var saved = null; try { saved = localStorage.getItem(key); } catch (e) {}
+  var system = window.matchMedia && window.matchMedia("(prefers-color-scheme: light)").matches ? "light" : "dark";
+  apply(saved || system);
+  document.getElementById("theme").addEventListener("click", function () {
+    var next = document.documentElement.getAttribute("data-theme") === "dark" ? "light" : "dark";
+    apply(next); try { localStorage.setItem(key, next); } catch (e) {}
+  });
+})();
+
+drawQr();
+drawCode();
+</script>
+</body></html>

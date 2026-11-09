@@ -1,0 +1,8 @@
+{
+  "name": "code-kit",
+  "version": "1.0.0",
+  "private": true,
+  "description": "code-kit \u2014 QR encoding (versions 1-40, L/M/Q/H), a small syntax highlighter and copyable snippet blocks.",
+  "scripts": { "test": "node test-node.js" },
+  "license": "SEE LICENSE IN LICENSE"
+}
