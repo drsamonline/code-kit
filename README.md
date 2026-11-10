@@ -56,7 +56,7 @@ implementation, on three separable things — error correction and interleaving,
 format information, and an end-to-end matrix:
 
 ```
-pip install segno && python3 scripts/verify-qr.py
+`pip install segno` — and it now runs in CI on every push, so a change to the tables cannot pass without an independent check. && python3 scripts/verify-qr.py
 10 of 10 cases agree
 ```
 
